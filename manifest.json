@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "LinkedIn Jobs — Applied Highlighter",
+  "version": "1.0.1",
+  "description": "Highlights LinkedIn job posts you’ve applied to.",
+  "permissions": ["storage"],
+  "host_permissions": ["*://www.linkedin.com/jobs/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://www.linkedin.com/jobs/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Applied Highlighter"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "li-applied-highlighter@jasur",
+      "strict_min_version": "109.0"
+    }
+  }
+}

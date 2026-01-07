@@ -1,0 +1,34 @@
+/* Red highlight for applied jobs */
+.li-applied-job-card,
+.li-applied-job-card * {
+  transition: background-color 120ms ease-in-out;
+}
+
+.li-applied-job-card {
+  background-color: rgba(119, 42, 42, 0.12) !important;
+  outline: 2px solid rgba(255, 0, 0, 0.45) !important;
+  border-radius: 8px !important;
+}
+
+/* Subtle tag on job titles/cards */
+.li-applied-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  border-radius: 999px;
+  background: rgba(255, 0, 0, 0.15);
+  outline: 1px solid rgba(255, 0, 0, 0.35);
+}
+
+/* “Mark as Applied” button style (job view page) */
+.li-mark-applied-btn {
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: white;
+  font-weight: 600;
+}
+.li-mark-applied-btn:hover { background: #f3f3f3; }
