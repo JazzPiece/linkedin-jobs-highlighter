@@ -37,3 +37,7 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+
+# Test files
+test-storage.html
+*.test.html
