@@ -41,7 +41,7 @@ Chrome Web Store version is in development.
 ### Manual Installation (Development)
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/linkedin-highlighter.git
+   git clone https://github.com/JazzPiece/linkedin-highlighter.git
    cd linkedin-highlighter
    ```
 
