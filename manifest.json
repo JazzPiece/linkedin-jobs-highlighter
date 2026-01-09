@@ -8,14 +8,25 @@
   "content_scripts": [
     {
       "matches": ["*://www.linkedin.com/jobs/*"],
-      "js": ["content.js"],
+      "js": ["content-v2.js"],
       "css": ["styles.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "type": "module"
     }
   ],
-  "action": {
-    "default_title": "Applied Highlighter"
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   },
+  "action": {
+    "default_title": "Applied Highlighter - Click to Test"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["test-storage.html", "src/shared/*.js", "src/utils/*.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "li-applied-highlighter@jasur",

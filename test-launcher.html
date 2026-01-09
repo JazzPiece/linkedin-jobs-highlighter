@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Launcher</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 600px;
+      margin: 100px auto;
+      padding: 40px;
+      background: #f5f5f5;
+      text-align: center;
+    }
+    h1 {
+      color: #0073b1;
+    }
+    .button {
+      display: inline-block;
+      background: #0073b1;
+      color: white;
+      padding: 20px 40px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 18px;
+      margin: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+    }
+    .button:hover {
+      background: #005885;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+    .info {
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Extension Test Launcher</h1>
+
+  <div class="info">
+    <strong>Instructions:</strong>
+    <ol>
+      <li>Make sure the extension is loaded in Chrome/Firefox</li>
+      <li>Click the button below to open the test page</li>
+      <li>The test page will open in extension context with full API access</li>
+    </ol>
+  </div>
+
+  <a href="test-storage.html" class="button" id="testLink">
+    Open Test Storage Page →
+  </a>
+
+  <div class="info" style="margin-top: 40px;">
+    <strong>Alternative:</strong> Access directly via extension URL:<br>
+    <code>chrome-extension://[YOUR-EXTENSION-ID]/test-storage.html</code>
+  </div>
+
+  <script>
+    // Try to get extension URL if available
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      const testUrl = chrome.runtime.getURL('test-storage.html');
+      document.getElementById('testLink').href = testUrl;
+    }
+  </script>
+</body>
+</html>
