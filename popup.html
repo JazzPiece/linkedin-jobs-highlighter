@@ -13,9 +13,13 @@
 
     body {
       width: 400px;
-      min-height: 500px;
+      height: 600px;
+      max-height: 600px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
       background: #f8f9fa;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     .header {
@@ -113,9 +117,10 @@
     }
 
     .jobs-list {
-      max-height: 320px;
+      flex: 1;
       overflow-y: auto;
       padding: 12px;
+      min-height: 0; /* Important for flex scrolling */
     }
 
     .job-item {
@@ -197,6 +202,10 @@
       padding: 12px 16px;
       display: flex;
       gap: 8px;
+      flex-shrink: 0; /* Prevent footer from shrinking */
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
     }
 
     .btn {
@@ -459,6 +468,19 @@
       box-shadow: 0 0 0 2px rgba(0,115,177,0.2);
     }
 
+    .color-picker-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: bold;
+    }
+
+    .color-picker-btn:hover {
+      opacity: 0.9;
+    }
+
     .reset-btn {
       width: 100%;
       padding: 10px;
@@ -540,12 +562,15 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-applied" class="color-input" value="#ff0000">
+            <input type="color" id="color-applied" class="color-input" value="#ff0000" style="display: none;">
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #ff0000;" data-color="#ff0000" data-target="applied"></div>
               <div class="color-preset-btn" style="background: #ff6b6b;" data-color="#ff6b6b" data-target="applied"></div>
               <div class="color-preset-btn" style="background: #ee5a6f;" data-color="#ee5a6f" data-target="applied"></div>
               <div class="color-preset-btn" style="background: #c92a2a;" data-color="#c92a2a" data-target="applied"></div>
+              <label class="color-preset-btn color-picker-btn" for="color-applied" title="Custom color">
+                <span style="font-size: 16px;">🎨</span>
+              </label>
             </div>
           </div>
         </div>
@@ -562,12 +587,15 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-viewed" class="color-input" value="#ffd700">
+            <input type="color" id="color-viewed" class="color-input" value="#ffd700" style="display: none;">
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #ffd700;" data-color="#ffd700" data-target="viewed"></div>
               <div class="color-preset-btn" style="background: #ffa500;" data-color="#ffa500" data-target="viewed"></div>
               <div class="color-preset-btn" style="background: #4dabf7;" data-color="#4dabf7" data-target="viewed"></div>
               <div class="color-preset-btn" style="background: #339af0;" data-color="#339af0" data-target="viewed"></div>
+              <label class="color-preset-btn color-picker-btn" for="color-viewed" title="Custom color">
+                <span style="font-size: 16px;">🎨</span>
+              </label>
             </div>
           </div>
         </div>
@@ -584,12 +612,15 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-saved" class="color-input" value="#00c851">
+            <input type="color" id="color-saved" class="color-input" value="#00c851" style="display: none;">
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #00c851;" data-color="#00c851" data-target="saved"></div>
               <div class="color-preset-btn" style="background: #51cf66;" data-color="#51cf66" data-target="saved"></div>
               <div class="color-preset-btn" style="background: #37b24d;" data-color="#37b24d" data-target="saved"></div>
               <div class="color-preset-btn" style="background: #2f9e44;" data-color="#2f9e44" data-target="saved"></div>
+              <label class="color-preset-btn color-picker-btn" for="color-saved" title="Custom color">
+                <span style="font-size: 16px;">🎨</span>
+              </label>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@
   "name": "LinkedIn Jobs — Applied Highlighter",
   "version": "1.0.1",
   "description": "Highlights LinkedIn job posts you’ve applied to.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["*://www.linkedin.com/*"],
   "content_scripts": [
     {

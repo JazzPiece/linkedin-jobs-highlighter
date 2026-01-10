@@ -80,6 +80,7 @@
           dateApplied: jobData.dateApplied || existingJob?.dateApplied || now,
           dateAdded: existingJob?.dateAdded || now,
           status: jobData.status || existingJob?.status || JOB_STATUS.APPLIED,
+          saved: jobData.saved !== undefined ? jobData.saved : (existingJob?.saved || false),
           notes: existingJob?.notes || [],
           statusHistory: existingJob?.statusHistory || [
             { status: jobData.status || JOB_STATUS.APPLIED, timestamp: now }
@@ -312,15 +313,21 @@
     return cards;
   }
 
-  function annotateCard(el, state = 'applied', jobData = null) {
+  function annotateCard(el, state = 'applied', isSaved = false, jobData = null) {
     if (!el) return;
 
     // Remove any existing state classes
     el.classList.remove("li-applied-job-card", "li-viewed-job-card", "li-saved-job-card", "show-border");
 
-    // Add appropriate class based on state
+    // Priority order for primary highlight: Applied > Viewed
+    // Saved is shown as secondary indicator (additional class)
     const stateClass = `li-${state}-job-card`;
     el.classList.add(stateClass);
+
+    // Add saved class if job is saved (can coexist with applied/viewed)
+    if (isSaved && currentSettings.tracking.saved.enabled) {
+      el.classList.add("li-saved-job-card");
+    }
 
     // Add border class if showBorder setting is enabled
     if (currentSettings.display.showBorder) {
@@ -331,19 +338,20 @@
     const title = el.querySelector('a[href*="/jobs/view/"]') || el.querySelector("h3,h2");
     if (!title) return;
 
-    // Remove existing badge if present
-    const existingBadge = title.querySelector(".li-applied-badge");
-    if (existingBadge) {
-      existingBadge.remove();
-    }
+    // Remove existing badges
+    const existingBadges = title.querySelectorAll(".li-applied-badge");
+    existingBadges.forEach(badge => badge.remove());
 
     // Add badge if showBadge setting is enabled
     if (currentSettings.display.showBadge) {
       const tag = document.createElement("span");
       tag.className = "li-applied-badge";
 
-      // Build badge text
+      // Build badge text - show both state and saved status if applicable
       let badgeText = state.charAt(0).toUpperCase() + state.slice(1);
+      if (isSaved && currentSettings.tracking.saved.enabled) {
+        badgeText += ' + Saved';
+      }
 
       // Add timestamp if enabled and available
       if (currentSettings.display.showTimestamp && jobData?.dateApplied) {
@@ -388,11 +396,18 @@
   }
 
   function getCardState(el) {
-    // Priority: Applied > Viewed > Saved
+    // Priority: Applied > Viewed (Saved is handled separately as boolean)
     if (cardShowsApplied(el)) return 'applied';
     if (cardShowsViewed(el)) return 'viewed';
-    if (cardShowsSaved(el)) return 'saved';
     return null;
+  }
+
+  function getCardDetection(el) {
+    // Return both state and saved status
+    return {
+      state: cardShowsApplied(el) ? 'applied' : (cardShowsViewed(el) ? 'viewed' : null),
+      saved: cardShowsSaved(el)
+    };
   }
 
   function injectMarkAppliedButton(jobId) {
@@ -437,43 +452,61 @@
     // Process each card
     for (const [jobId, el] of cards.entries()) {
       let state = null;
+      let isSaved = false;
       let shouldStore = false;
       let shouldUpdate = false;
 
       // Check if job is already in storage
       const existingJob = allJobs[jobId];
 
-      // Always detect current state from LinkedIn's UI
-      const detectedState = getCardState(el);
+      // Always detect current state and saved status from LinkedIn's UI
+      const detection = getCardDetection(el);
+      const detectedState = detection.state;
+      const detectedSaved = detection.saved;
 
       if (existingJob) {
-        // Job exists - check if state has changed
+        // Job exists - check if state or saved status has changed
         const currentStoredState = existingJob.status || 'applied';
+        const currentStoredSaved = existingJob.saved || false;
 
-        // Priority: Applied > Viewed > Saved
-        // If LinkedIn shows "applied" but we have "viewed" or "saved", update it
+        // Update state if it changed (Applied > Viewed priority)
         if (detectedState === 'applied' && currentStoredState !== 'applied') {
           state = 'applied';
           shouldUpdate = true;
-        } else if (detectedState === 'viewed' && currentStoredState === 'saved') {
-          // Only upgrade from saved to viewed (not downgrade from applied)
+        } else if (detectedState === 'viewed' && currentStoredState !== 'viewed' && currentStoredState !== 'applied') {
+          // Only upgrade to viewed if not already applied
           state = 'viewed';
           shouldUpdate = true;
         } else {
           // Keep existing state
           state = currentStoredState;
         }
+
+        // Update saved status if it changed
+        if (detectedSaved !== currentStoredSaved) {
+          isSaved = detectedSaved;
+          shouldUpdate = true;
+        } else {
+          isSaved = currentStoredSaved;
+        }
+
       } else {
-        // Job not in storage - detect state from LinkedIn's UI
+        // Job not in storage - detect from LinkedIn's UI
         if (detectedState === 'applied' && currentSettings.tracking.applied.enabled) {
           state = 'applied';
           shouldStore = true;
         } else if (detectedState === 'viewed' && currentSettings.tracking.viewed.enabled) {
           state = 'viewed';
           shouldStore = true;
-        } else if (detectedState === 'saved' && currentSettings.tracking.saved.enabled) {
-          state = 'saved';
-          shouldStore = true;
+        }
+
+        // Check if saved (can be saved without being applied/viewed)
+        if (detectedSaved && currentSettings.tracking.saved.enabled) {
+          isSaved = true;
+          if (!state) {
+            // Only saved, not applied or viewed - still store it
+            shouldStore = true;
+          }
         }
       }
 
@@ -481,18 +514,22 @@
       if (state) {
         const stateEnabled = currentSettings.tracking[state]?.enabled;
         if (stateEnabled) {
-          annotateCard(el, state, existingJob);
+          annotateCard(el, state, isSaved, existingJob);
         }
+      } else if (isSaved && currentSettings.tracking.saved.enabled) {
+        // Only saved, show saved highlight
+        annotateCard(el, 'saved', false, existingJob);
       }
 
       // Store new job or update existing
       if (shouldStore || shouldUpdate) {
         const metadata = extractJobMetadata(el, jobId);
-        metadata.status = state;
+        metadata.status = state || 'saved'; // If only saved, use 'saved' as status
+        metadata.saved = isSaved;
         await storageManager.saveJob(metadata);
 
         if (shouldUpdate) {
-          console.log(`[LinkedInHighlighter] Updated job ${jobId} status to: ${state}`);
+          console.log(`[LinkedInHighlighter] Updated job ${jobId}: status=${state}, saved=${isSaved}`);
         }
       }
     }

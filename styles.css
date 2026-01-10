@@ -23,21 +23,36 @@
 }
 
 /* Viewed jobs - yellow/gold highlight */
-.li-viewed-job-card {
+.li-viewed-job-card:not(.li-applied-job-card) {
   background-color: color-mix(in srgb, var(--highlight-viewed) 12%, transparent) !important;
 }
 
-.li-viewed-job-card.show-border {
+.li-viewed-job-card.show-border:not(.li-applied-job-card) {
   outline: 2px solid color-mix(in srgb, var(--highlight-viewed) 45%, transparent) !important;
 }
 
 /* Saved jobs - green highlight */
-.li-saved-job-card {
+.li-saved-job-card:not(.li-applied-job-card):not(.li-viewed-job-card) {
+  /* Only apply saved background if it's ONLY saved (not also applied/viewed) */
   background-color: color-mix(in srgb, var(--highlight-saved) 12%, transparent) !important;
 }
 
-.li-saved-job-card.show-border {
+.li-saved-job-card:not(.li-applied-job-card):not(.li-viewed-job-card).show-border {
   outline: 2px solid color-mix(in srgb, var(--highlight-saved) 45%, transparent) !important;
+}
+
+/* Combined: Applied + Saved (gradient or border indicator) */
+.li-applied-job-card.li-saved-job-card {
+  /* Primary color is applied (red), add saved indicator via left border */
+  border-left: 4px solid var(--highlight-saved) !important;
+  background-color: color-mix(in srgb, var(--highlight-applied) 12%, transparent) !important;
+}
+
+/* Combined: Viewed + Saved */
+.li-viewed-job-card.li-saved-job-card {
+  /* Primary color is viewed (yellow), add saved indicator via left border */
+  border-left: 4px solid var(--highlight-saved) !important;
+  background-color: color-mix(in srgb, var(--highlight-viewed) 12%, transparent) !important;
 }
 
 /* Subtle tag on job titles/cards */

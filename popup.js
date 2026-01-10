@@ -32,12 +32,19 @@
   // Save settings to storage
   async function saveSettings(settings) {
     await chrome.storage.local.set({ settings });
-    // Notify content script of settings change (ignore errors if no content script is active)
+
+    // Notify content scripts on LinkedIn tabs of settings change
     try {
-      chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings });
+      const tabs = await chrome.tabs.query({ url: '*://www.linkedin.com/*' });
+      for (const tab of tabs) {
+        try {
+          await chrome.tabs.sendMessage(tab.id, { type: 'SETTINGS_UPDATED', settings });
+        } catch (e) {
+          // Tab doesn't have content script injected - that's okay
+        }
+      }
     } catch (error) {
-      // Content script not loaded on current page - that's okay
-      console.log('[Popup] Content script not available:', error.message);
+      // Silently fail - settings are saved to storage and will be loaded on next page
     }
   }
 
