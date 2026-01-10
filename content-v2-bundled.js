@@ -48,8 +48,17 @@
     }
 
     async getAllJobs() {
-      const result = await this.storageAPI.get(STORAGE_KEYS.JOBS);
-      return result[STORAGE_KEYS.JOBS] || {};
+      try {
+        const result = await this.storageAPI.get(STORAGE_KEYS.JOBS);
+        return result[STORAGE_KEYS.JOBS] || {};
+      } catch (error) {
+        // Extension context invalidated - reload will fix
+        if (error.message.includes('Extension context invalidated')) {
+          console.log('[StorageManager] Extension context invalidated, stopping operations');
+          return {};
+        }
+        throw error;
+      }
     }
 
     async getJob(jobId) {
@@ -58,31 +67,40 @@
     }
 
     async saveJob(jobData) {
-      const jobs = await this.getAllJobs();
-      const now = Date.now();
-      const existingJob = jobs[jobData.id];
+      try {
+        const jobs = await this.getAllJobs();
+        const now = Date.now();
+        const existingJob = jobs[jobData.id];
 
-      const job = {
-        id: jobData.id,
-        title: jobData.title || existingJob?.title || '',
-        company: jobData.company || existingJob?.company || '',
-        url: jobData.url || existingJob?.url || `https://www.linkedin.com/jobs/view/${jobData.id}`,
-        dateApplied: jobData.dateApplied || existingJob?.dateApplied || now,
-        dateAdded: existingJob?.dateAdded || now,
-        status: jobData.status || existingJob?.status || JOB_STATUS.APPLIED,
-        notes: existingJob?.notes || [],
-        statusHistory: existingJob?.statusHistory || [
-          { status: jobData.status || JOB_STATUS.APPLIED, timestamp: now }
-        ],
-        metadata: {
-          location: jobData.metadata?.location || existingJob?.metadata?.location || '',
-          salary: jobData.metadata?.salary || existingJob?.metadata?.salary || '',
-          remote: jobData.metadata?.remote || existingJob?.metadata?.remote || false
+        const job = {
+          id: jobData.id,
+          title: jobData.title || existingJob?.title || '',
+          company: jobData.company || existingJob?.company || '',
+          url: jobData.url || existingJob?.url || `https://www.linkedin.com/jobs/view/${jobData.id}`,
+          dateApplied: jobData.dateApplied || existingJob?.dateApplied || now,
+          dateAdded: existingJob?.dateAdded || now,
+          status: jobData.status || existingJob?.status || JOB_STATUS.APPLIED,
+          notes: existingJob?.notes || [],
+          statusHistory: existingJob?.statusHistory || [
+            { status: jobData.status || JOB_STATUS.APPLIED, timestamp: now }
+          ],
+          metadata: {
+            location: jobData.metadata?.location || existingJob?.metadata?.location || '',
+            salary: jobData.metadata?.salary || existingJob?.metadata?.salary || '',
+            remote: jobData.metadata?.remote || existingJob?.metadata?.remote || false
+          }
+        };
+
+        jobs[jobData.id] = job;
+        await this.storageAPI.set({ [STORAGE_KEYS.JOBS]: jobs });
+      } catch (error) {
+        // Extension context invalidated - ignore
+        if (error.message.includes('Extension context invalidated')) {
+          console.log('[StorageManager] Extension context invalidated, cannot save job');
+          return;
         }
-      };
-
-      jobs[jobData.id] = job;
-      await this.storageAPI.set({ [STORAGE_KEYS.JOBS]: jobs });
+        throw error;
+      }
     }
 
     async jobExists(jobId) {
@@ -114,7 +132,7 @@
   }
 
   // Listen for settings updates from popup
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'SETTINGS_UPDATED') {
       currentSettings = message.settings;
       applyDynamicColors();
@@ -294,32 +312,87 @@
     return cards;
   }
 
-  function annotateCard(el, state = 'applied') {
+  function annotateCard(el, state = 'applied', jobData = null) {
     if (!el) return;
 
     // Remove any existing state classes
-    el.classList.remove("li-applied-job-card", "li-viewed-job-card", "li-saved-job-card");
+    el.classList.remove("li-applied-job-card", "li-viewed-job-card", "li-saved-job-card", "show-border");
 
     // Add appropriate class based on state
     const stateClass = `li-${state}-job-card`;
-    if (el.classList.contains(stateClass)) return;
     el.classList.add(stateClass);
 
-    // Only add badge if showBadge setting is enabled
+    // Add border class if showBorder setting is enabled
+    if (currentSettings.display.showBorder) {
+      el.classList.add("show-border");
+    }
+
+    // Find title element
+    const title = el.querySelector('a[href*="/jobs/view/"]') || el.querySelector("h3,h2");
+    if (!title) return;
+
+    // Remove existing badge if present
+    const existingBadge = title.querySelector(".li-applied-badge");
+    if (existingBadge) {
+      existingBadge.remove();
+    }
+
+    // Add badge if showBadge setting is enabled
     if (currentSettings.display.showBadge) {
-      const title = el.querySelector('a[href*="/jobs/view/"]') || el.querySelector("h3,h2");
-      if (title && !title.querySelector(".li-applied-badge")) {
-        const tag = document.createElement("span");
-        tag.className = "li-applied-badge";
-        tag.textContent = state.charAt(0).toUpperCase() + state.slice(1);
-        title.appendChild(tag);
+      const tag = document.createElement("span");
+      tag.className = "li-applied-badge";
+
+      // Build badge text
+      let badgeText = state.charAt(0).toUpperCase() + state.slice(1);
+
+      // Add timestamp if enabled and available
+      if (currentSettings.display.showTimestamp && jobData?.dateApplied) {
+        const date = new Date(jobData.dateApplied);
+        const now = new Date();
+        const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+        let dateStr;
+        if (diffDays === 0) {
+          dateStr = 'Today';
+        } else if (diffDays === 1) {
+          dateStr = 'Yesterday';
+        } else if (diffDays < 7) {
+          dateStr = `${diffDays}d ago`;
+        } else if (diffDays < 30) {
+          dateStr = `${Math.floor(diffDays / 7)}w ago`;
+        } else {
+          dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        badgeText += ` • ${dateStr}`;
       }
+
+      tag.textContent = badgeText;
+      title.appendChild(tag);
     }
   }
 
   function cardShowsApplied(el) {
     const txt = (el.textContent || "").toLowerCase();
     return /\b(applied|you applied|application submitted|applied on)\b/i.test(txt);
+  }
+
+  function cardShowsViewed(el) {
+    const txt = (el.textContent || "").toLowerCase();
+    return /\b(viewed|viewed on|you viewed)\b/i.test(txt);
+  }
+
+  function cardShowsSaved(el) {
+    const txt = (el.textContent || "").toLowerCase();
+    return /\b(saved|you saved|saved on)\b/i.test(txt);
+  }
+
+  function getCardState(el) {
+    // Priority: Applied > Viewed > Saved
+    if (cardShowsApplied(el)) return 'applied';
+    if (cardShowsViewed(el)) return 'viewed';
+    if (cardShowsSaved(el)) return 'saved';
+    return null;
   }
 
   function injectMarkAppliedButton(jobId) {
@@ -358,25 +431,69 @@
   // ============================================================================
 
   async function highlightApplied() {
-    const appliedJobIds = await getAppliedJobIds();
-    const appliedSet = new Set(appliedJobIds);
+    const allJobs = await storageManager.getAllJobs();
     const cards = findAllJobCardNodes();
 
-    // 1) Cards that explicitly show "Applied" -> highlight & store
+    // Process each card
     for (const [jobId, el] of cards.entries()) {
-      if (cardShowsApplied(el)) {
-        annotateCard(el);
-        if (!appliedSet.has(jobId)) {
-          await setApplied(jobId, el);
-          appliedSet.add(jobId);
+      let state = null;
+      let shouldStore = false;
+      let shouldUpdate = false;
+
+      // Check if job is already in storage
+      const existingJob = allJobs[jobId];
+
+      // Always detect current state from LinkedIn's UI
+      const detectedState = getCardState(el);
+
+      if (existingJob) {
+        // Job exists - check if state has changed
+        const currentStoredState = existingJob.status || 'applied';
+
+        // Priority: Applied > Viewed > Saved
+        // If LinkedIn shows "applied" but we have "viewed" or "saved", update it
+        if (detectedState === 'applied' && currentStoredState !== 'applied') {
+          state = 'applied';
+          shouldUpdate = true;
+        } else if (detectedState === 'viewed' && currentStoredState === 'saved') {
+          // Only upgrade from saved to viewed (not downgrade from applied)
+          state = 'viewed';
+          shouldUpdate = true;
+        } else {
+          // Keep existing state
+          state = currentStoredState;
+        }
+      } else {
+        // Job not in storage - detect state from LinkedIn's UI
+        if (detectedState === 'applied' && currentSettings.tracking.applied.enabled) {
+          state = 'applied';
+          shouldStore = true;
+        } else if (detectedState === 'viewed' && currentSettings.tracking.viewed.enabled) {
+          state = 'viewed';
+          shouldStore = true;
+        } else if (detectedState === 'saved' && currentSettings.tracking.saved.enabled) {
+          state = 'saved';
+          shouldStore = true;
         }
       }
-    }
 
-    // 2) Highlight any card whose jobId we've already stored
-    for (const [jobId, el] of cards.entries()) {
-      if (appliedSet.has(jobId)) {
-        annotateCard(el);
+      // Apply highlighting if we have a state and that state is enabled
+      if (state) {
+        const stateEnabled = currentSettings.tracking[state]?.enabled;
+        if (stateEnabled) {
+          annotateCard(el, state, existingJob);
+        }
+      }
+
+      // Store new job or update existing
+      if (shouldStore || shouldUpdate) {
+        const metadata = extractJobMetadata(el, jobId);
+        metadata.status = state;
+        await storageManager.saveJob(metadata);
+
+        if (shouldUpdate) {
+          console.log(`[LinkedInHighlighter] Updated job ${jobId} status to: ${state}`);
+        }
       }
     }
   }

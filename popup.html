@@ -61,6 +61,34 @@
       border-bottom: 1px solid #e5e7eb;
     }
 
+    .tabs {
+      display: flex;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: #0073b1;
+      background: #f8f9fa;
+    }
+
+    .tab.active {
+      color: #0073b1;
+      border-bottom-color: #0073b1;
+    }
+
     .stat-card {
       background: #f8f9fa;
       padding: 16px;
@@ -468,6 +496,11 @@
     </div>
   </div>
 
+  <div class="tabs">
+    <div class="tab active" data-tab="applied">Applied Jobs</div>
+    <div class="tab" data-tab="viewed">Viewed Jobs</div>
+  </div>
+
   <div class="jobs-list" id="jobs-list">
     <div class="loading">Loading jobs...</div>
   </div>
@@ -587,6 +620,19 @@
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="toggle-border" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Show Timestamp on Badge</div>
+              <div class="setting-description">Display date when job was applied/viewed/saved</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-timestamp">
               <span class="toggle-slider"></span>
             </label>
           </div>

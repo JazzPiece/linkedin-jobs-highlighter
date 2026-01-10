@@ -4,10 +4,10 @@
   "version": "1.0.1",
   "description": "Highlights LinkedIn job posts you’ve applied to.",
   "permissions": ["storage"],
-  "host_permissions": ["*://www.linkedin.com/jobs/*"],
+  "host_permissions": ["*://www.linkedin.com/*"],
   "content_scripts": [
     {
-      "matches": ["*://www.linkedin.com/jobs/*"],
+      "matches": ["*://www.linkedin.com/jobs/*", "*://www.linkedin.com/my-items/*"],
       "js": ["content-v2-bundled.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"

@@ -12,7 +12,8 @@
     },
     display: {
       showBadge: true,
-      showBorder: true
+      showBorder: true,
+      showTimestamp: false
     }
   };
 
@@ -31,8 +32,13 @@
   // Save settings to storage
   async function saveSettings(settings) {
     await chrome.storage.local.set({ settings });
-    // Notify content script of settings change
-    chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings });
+    // Notify content script of settings change (ignore errors if no content script is active)
+    try {
+      chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings });
+    } catch (error) {
+      // Content script not loaded on current page - that's okay
+      console.log('[Popup] Content script not available:', error.message);
+    }
   }
 
   // Format date
@@ -60,7 +66,7 @@
     return classes[status] || 'badge-applied';
   }
 
-  // Calculate this week's applications
+  // Calculate this week's applications (only "applied" status)
   function getThisWeekCount(jobs) {
     const now = new Date();
     const weekStart = new Date(now);
@@ -68,23 +74,29 @@
     weekStart.setHours(0, 0, 0, 0);
 
     return Object.values(jobs).filter(job => {
-      return job.dateApplied >= weekStart.getTime();
+      return job.status === 'applied' && job.dateApplied >= weekStart.getTime();
     }).length;
   }
 
+  // Track current filter
+  let currentFilter = 'applied';
+
   // Render jobs list
-  function renderJobs(jobs) {
+  function renderJobs(jobs, filter = 'applied') {
     const jobsList = document.getElementById('jobs-list');
-    const jobsArray = Object.values(jobs);
+    let jobsArray = Object.values(jobs);
+
+    // Filter by status
+    jobsArray = jobsArray.filter(job => job.status === filter);
 
     if (jobsArray.length === 0) {
+      const filterName = filter.charAt(0).toUpperCase() + filter.slice(1);
       jobsList.innerHTML = `
         <div class="empty-state">
           <div class="empty-icon">📋</div>
           <div class="empty-text">
-            No jobs tracked yet!<br>
-            Start applying on LinkedIn and<br>
-            they'll appear here automatically.
+            No ${filterName.toLowerCase()} jobs yet!<br>
+            ${filter === 'applied' ? 'Start applying on LinkedIn and<br>they\'ll appear here automatically.' : 'Jobs you\'ve viewed will<br>appear here automatically.'}
           </div>
         </div>
       `;
@@ -121,7 +133,9 @@
   // Update statistics
   function updateStats(jobs) {
     const jobsArray = Object.values(jobs);
-    const totalApps = jobsArray.length;
+    // Filter to only count applied jobs (not viewed or saved)
+    const appliedJobs = jobsArray.filter(job => job.status === 'applied');
+    const totalApps = appliedJobs.length;
     const thisWeek = getThisWeekCount(jobs);
 
     document.getElementById('total-apps').textContent = totalApps;
@@ -204,7 +218,23 @@
   async function init() {
     const jobs = await getAllJobs();
     updateStats(jobs);
-    renderJobs(jobs);
+    renderJobs(jobs, currentFilter);
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', async () => {
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Update filter
+        currentFilter = tab.dataset.tab;
+
+        // Re-render jobs with new filter
+        const jobs = await getAllJobs();
+        renderJobs(jobs, currentFilter);
+      });
+    });
 
     // Button handlers
     document.getElementById('btn-export').addEventListener('click', showExportMenu);
@@ -248,16 +278,18 @@
     async function loadSettings() {
       const settings = await getSettings();
 
-      document.getElementById('toggle-applied').checked = settings.tracking.applied.enabled;
-      document.getElementById('toggle-viewed').checked = settings.tracking.viewed.enabled;
-      document.getElementById('toggle-saved').checked = settings.tracking.saved.enabled;
+      // Safely access nested properties with fallbacks
+      document.getElementById('toggle-applied').checked = settings?.tracking?.applied?.enabled ?? true;
+      document.getElementById('toggle-viewed').checked = settings?.tracking?.viewed?.enabled ?? false;
+      document.getElementById('toggle-saved').checked = settings?.tracking?.saved?.enabled ?? false;
 
-      document.getElementById('color-applied').value = settings.tracking.applied.color;
-      document.getElementById('color-viewed').value = settings.tracking.viewed.color;
-      document.getElementById('color-saved').value = settings.tracking.saved.color;
+      document.getElementById('color-applied').value = settings?.tracking?.applied?.color ?? '#ff0000';
+      document.getElementById('color-viewed').value = settings?.tracking?.viewed?.color ?? '#ffd700';
+      document.getElementById('color-saved').value = settings?.tracking?.saved?.color ?? '#00c851';
 
-      document.getElementById('toggle-badge').checked = settings.display.showBadge;
-      document.getElementById('toggle-border').checked = settings.display.showBorder;
+      document.getElementById('toggle-badge').checked = settings?.display?.showBadge ?? true;
+      document.getElementById('toggle-border').checked = settings?.display?.showBorder ?? true;
+      document.getElementById('toggle-timestamp').checked = settings?.display?.showTimestamp ?? false;
     }
 
     // Save settings when toggles change
@@ -279,7 +311,8 @@
         },
         display: {
           showBadge: document.getElementById('toggle-badge').checked,
-          showBorder: document.getElementById('toggle-border').checked
+          showBorder: document.getElementById('toggle-border').checked,
+          showTimestamp: document.getElementById('toggle-timestamp').checked
         }
       };
       await saveSettings(settings);
@@ -291,6 +324,7 @@
     document.getElementById('toggle-saved').addEventListener('change', handleSettingChange);
     document.getElementById('toggle-badge').addEventListener('change', handleSettingChange);
     document.getElementById('toggle-border').addEventListener('change', handleSettingChange);
+    document.getElementById('toggle-timestamp').addEventListener('change', handleSettingChange);
 
     document.getElementById('color-applied').addEventListener('input', handleSettingChange);
     document.getElementById('color-viewed').addEventListener('input', handleSettingChange);
@@ -319,7 +353,7 @@
       if (changes.jobs) {
         const jobs = await getAllJobs();
         updateStats(jobs);
-        renderJobs(jobs);
+        renderJobs(jobs, currentFilter);
       }
     });
   }
