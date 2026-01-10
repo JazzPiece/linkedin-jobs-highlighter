@@ -1,13 +1,34 @@
-/* Red highlight for applied jobs */
-.li-applied-job-card,
-.li-applied-job-card * {
-  transition: background-color 120ms ease-in-out;
+/* CSS Custom Properties for dynamic colors */
+:root {
+  --highlight-applied: #ff0000;
+  --highlight-viewed: #ffd700;
+  --highlight-saved: #00c851;
 }
 
-.li-applied-job-card {
-  background-color: rgba(119, 42, 42, 0.12) !important;
-  outline: 2px solid rgba(255, 0, 0, 0.45) !important;
+/* Base transition for all job cards */
+.li-applied-job-card,
+.li-viewed-job-card,
+.li-saved-job-card {
+  transition: background-color 120ms ease-in-out;
   border-radius: 8px !important;
+}
+
+/* Applied jobs - red highlight */
+.li-applied-job-card {
+  background-color: color-mix(in srgb, var(--highlight-applied) 12%, transparent) !important;
+  outline: 2px solid color-mix(in srgb, var(--highlight-applied) 45%, transparent) !important;
+}
+
+/* Viewed jobs - yellow/gold highlight */
+.li-viewed-job-card {
+  background-color: color-mix(in srgb, var(--highlight-viewed) 12%, transparent) !important;
+  outline: 2px solid color-mix(in srgb, var(--highlight-viewed) 45%, transparent) !important;
+}
+
+/* Saved jobs - green highlight */
+.li-saved-job-card {
+  background-color: color-mix(in srgb, var(--highlight-saved) 12%, transparent) !important;
+  outline: 2px solid color-mix(in srgb, var(--highlight-saved) 45%, transparent) !important;
 }
 
 /* Subtle tag on job titles/cards */
