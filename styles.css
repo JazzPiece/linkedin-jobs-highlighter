@@ -67,7 +67,7 @@
   outline: 1px solid rgba(255, 0, 0, 0.35);
 }
 
-/* “Mark as Applied” button style (job view page) */
+/* "Mark as Applied" button style (job view page) */
 .li-mark-applied-btn {
   cursor: pointer;
   border: 1px solid rgba(0,0,0,0.2);
@@ -77,3 +77,59 @@
   font-weight: 600;
 }
 .li-mark-applied-btn:hover { background: #f3f3f3; }
+
+/* Hidden/Filtered Jobs - Only apply to job list items (li or list items), not detail view */
+li.li-job-hidden.li-job-collapsed,
+.jobs-search-results__list-item.li-job-hidden.li-job-collapsed,
+.job-card-container.li-job-hidden.li-job-collapsed {
+  height: 60px !important;
+  overflow: hidden !important;
+  position: relative;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    45deg,
+    #f5f5f5,
+    #f5f5f5 10px,
+    #e8e8e8 10px,
+    #e8e8e8 20px
+  ) !important;
+  transition: all 0.3s ease;
+}
+
+li.li-job-hidden.li-job-collapsed:hover,
+.jobs-search-results__list-item.li-job-hidden.li-job-collapsed:hover,
+.job-card-container.li-job-hidden.li-job-collapsed:hover {
+  opacity: 0.7;
+}
+
+/* Completely hidden jobs - Only for list items */
+li.li-job-hidden:not(.li-job-collapsed),
+.jobs-search-results__list-item.li-job-hidden:not(.li-job-collapsed),
+.job-card-container.li-job-hidden:not(.li-job-collapsed) {
+  display: none !important;
+}
+
+/* Show button for collapsed jobs */
+.li-job-show-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  padding: 6px 16px;
+  background: #0073b1;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.li-job-show-btn:hover {
+  background: #005885;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transform: translate(-50%, -50%) scale(1.05);
+}

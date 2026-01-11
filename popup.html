@@ -65,6 +65,36 @@
       border-bottom: 1px solid #e5e7eb;
     }
 
+    .stat-card-full {
+      grid-column: 1 / -1;
+      background: #f8f9fa;
+      padding: 12px 16px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #e5e7eb;
+    }
+
+    .stat-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-info-label {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-info-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
     .tabs {
       display: flex;
       background: white;
@@ -114,6 +144,12 @@
       color: #6b7280;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+
+    .stat-sublabel {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
     }
 
     .jobs-list {
@@ -435,6 +471,7 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .color-input {
@@ -443,6 +480,29 @@
       border: 1px solid #d1d5db;
       border-radius: 4px;
       cursor: pointer;
+    }
+
+    .current-color-display {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: #f9fafb;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .current-color-label {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .current-color-box {
+      width: 32px;
+      height: 24px;
+      border-radius: 4px;
+      border: 2px solid #e5e7eb;
     }
 
     .color-preset {
@@ -456,16 +516,18 @@
       border: 2px solid #e5e7eb;
       border-radius: 4px;
       cursor: pointer;
-      transition: border-color 0.2s;
+      transition: all 0.2s;
     }
 
     .color-preset-btn:hover {
       border-color: #0073b1;
+      transform: scale(1.1);
     }
 
     .color-preset-btn.active {
       border-color: #0073b1;
-      box-shadow: 0 0 0 2px rgba(0,115,177,0.2);
+      border-width: 3px;
+      box-shadow: 0 0 0 2px rgba(0, 115, 177, 0.1);
     }
 
     .color-picker-btn {
@@ -475,10 +537,17 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       font-weight: bold;
+      position: relative;
+      z-index: 1000;
     }
 
     .color-picker-btn:hover {
       opacity: 0.9;
+    }
+
+    .color-input {
+      position: relative;
+      z-index: 1001;
     }
 
     .reset-btn {
@@ -498,11 +567,60 @@
       background: #e5e7eb;
       border-color: #9ca3af;
     }
+
+    /* Settings change notification */
+    .settings-notification {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0073b1;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 1000;
+      animation: slideDown 0.3s ease;
+    }
+
+    .settings-notification.show {
+      display: block;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .notification-close {
+      margin-left: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      opacity: 0.8;
+    }
+
+    .notification-close:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
+  <!-- Settings change notification -->
+  <div class="settings-notification" id="settings-notification">
+    Settings saved! Refresh LinkedIn page to see changes.
+    <span class="notification-close" id="notification-close">✕</span>
+  </div>
+
   <div class="header">
-    <h1>🎯 LinkedIn Jobs Tracker</h1>
+    <h1>LinkedIn Jobs Tracker</h1>
     <p>Track your job applications</p>
     <span class="settings-icon" id="settings-icon">⚙️</span>
   </div>
@@ -510,7 +628,8 @@
   <div class="stats">
     <div class="stat-card">
       <span class="stat-number" id="total-apps">0</span>
-      <span class="stat-label">Total Applied</span>
+      <span class="stat-label" id="stat-label-total">Total Applied</span>
+      <div class="stat-sublabel">Since <span id="install-date">Loading...</span></div>
     </div>
     <div class="stat-card">
       <span class="stat-number" id="this-week">0</span>
@@ -562,7 +681,8 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-applied" class="color-input" value="#ff0000" style="display: none;">
+            <input type="color" id="color-applied" class="color-input" value="#ff0000">
+            
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #ff0000;" data-color="#ff0000" data-target="applied"></div>
               <div class="color-preset-btn" style="background: #ff6b6b;" data-color="#ff6b6b" data-target="applied"></div>
@@ -587,7 +707,9 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-viewed" class="color-input" value="#ffd700" style="display: none;">
+            <input type="color" id="color-viewed" class="color-input" value="#ffd700">
+            
+          
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #ffd700;" data-color="#ffd700" data-target="viewed"></div>
               <div class="color-preset-btn" style="background: #ffa500;" data-color="#ffa500" data-target="viewed"></div>
@@ -612,7 +734,8 @@
             </label>
           </div>
           <div class="color-picker-group">
-            <input type="color" id="color-saved" class="color-input" value="#00c851" style="display: none;">
+            <input type="color" id="color-saved" class="color-input" value="#00c851">
+            
             <div class="color-preset">
               <div class="color-preset-btn" style="background: #00c851;" data-color="#00c851" data-target="saved"></div>
               <div class="color-preset-btn" style="background: #51cf66;" data-color="#51cf66" data-target="saved"></div>
@@ -667,6 +790,116 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+        </div>
+      </div>
+
+      <!-- Smart Filtering -->
+      <div class="settings-section">
+        <div class="settings-section-title">Smart Filtering</div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Applied Jobs</div>
+              <div class="setting-description">Hide jobs you've already applied to</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-applied">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Viewed Jobs</div>
+              <div class="setting-description">Hide jobs you've already viewed</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-viewed">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Remote Jobs</div>
+              <div class="setting-description">Hide jobs marked as remote or WFH</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-remote">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Hybrid Jobs</div>
+              <div class="setting-description">Hide jobs marked as hybrid</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-hybrid">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide On-Site Jobs</div>
+              <div class="setting-description">Hide jobs requiring in-office presence</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-onsite">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Jobs Without Salary</div>
+              <div class="setting-description">Hide jobs that don't list compensation</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggle-hide-no-salary">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-label">
+            <div>
+              <div class="setting-label-text">Hide Mode</div>
+              <div class="setting-description">How to display hidden jobs</div>
+            </div>
+          </div>
+          <select id="hide-mode-select" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+            <option value="collapse">Collapse (show button to expand)</option>
+            <option value="complete">Completely hide</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Company Blacklist -->
+      <div class="settings-section">
+        <div class="settings-section-title">Company Blacklist</div>
+
+        <div class="setting-item">
+          <div class="setting-label-text" style="margin-bottom: 8px;">Hide jobs from specific companies</div>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="blacklist-input" placeholder="Company name..." style="flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px;">
+            <button id="btn-add-blacklist" style="padding: 8px 16px; background: #0073b1; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">Add</button>
+          </div>
+          <div id="blacklist-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
         </div>
       </div>
 

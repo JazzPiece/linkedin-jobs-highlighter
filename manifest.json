@@ -7,7 +7,7 @@
   "host_permissions": ["*://www.linkedin.com/*"],
   "content_scripts": [
     {
-      "matches": ["*://www.linkedin.com/jobs/*", "*://www.linkedin.com/my-items/*"],
+      "matches": ["*://www.linkedin.com/jobs/*"],
       "js": ["content-v2-bundled.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"

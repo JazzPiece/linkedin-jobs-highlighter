@@ -13,6 +13,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   } catch (error) {
     console.error('[Background] Migration failed:', error);
   }
+
+  // Store installation date on first install
+  if (details.reason === 'install') {
+    const installDate = Date.now();
+    await chrome.storage.local.set({ installDate });
+    console.log('[Background] Extension installed on:', new Date(installDate).toISOString());
+  }
 });
 
 // Listen for extension icon click - open test page

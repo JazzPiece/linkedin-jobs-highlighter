@@ -34,7 +34,20 @@
     },
     display: {
       showBadge: true,
-      showBorder: true
+      showBorder: true,
+      showTimestamp: false
+    },
+    filtering: {
+      hideApplied: false,
+      hideViewed: false,
+      hideOnSite: false,
+      hideHybrid: false,
+      hideRemote: false,
+      hideNoSalary: false,
+      hideMode: 'collapse' // 'collapse' or 'complete'
+    },
+    blacklist: {
+      companies: [] // array of company names (case-insensitive)
     }
   };
 
@@ -124,12 +137,17 @@
   }
 
   function applyDynamicColors() {
-    const colors = currentSettings.tracking;
+    // Safely access nested properties with null checking
+    const colors = currentSettings?.tracking;
+    if (!colors) {
+      console.warn('[LinkedInHighlighter] Settings not loaded yet, using defaults');
+      return;
+    }
 
     // Apply CSS custom properties for dynamic colors
-    document.documentElement.style.setProperty('--highlight-applied', colors.applied.color);
-    document.documentElement.style.setProperty('--highlight-viewed', colors.viewed.color);
-    document.documentElement.style.setProperty('--highlight-saved', colors.saved.color);
+    document.documentElement.style.setProperty('--highlight-applied', colors.applied?.color || '#ff0000');
+    document.documentElement.style.setProperty('--highlight-viewed', colors.viewed?.color || '#ffd700');
+    document.documentElement.style.setProperty('--highlight-saved', colors.saved?.color || '#00c851');
   }
 
   // Listen for settings updates from popup
@@ -410,6 +428,149 @@
     };
   }
 
+  // ============================================================================
+  // FILTERING UTILITIES
+  // ============================================================================
+
+  function detectLocationType(el) {
+    const text = (el.textContent || "").toLowerCase();
+
+    // Check for remote keywords
+    if (/\b(remote|work from home|wfh)\b/i.test(text)) {
+      return 'remote';
+    }
+
+    // Check for hybrid keywords
+    if (/\b(hybrid)\b/i.test(text)) {
+      return 'hybrid';
+    }
+
+    // Default to on-site if no remote/hybrid indicators
+    return 'onsite';
+  }
+
+  function hasSalaryListed(el) {
+    const text = el.textContent || "";
+    // Check for common salary indicators
+    return /[$€£¥]\s*[\d,]+|\d+[kK]\/?(yr|year)?|salary|compensation|per (hour|year|month)/i.test(text);
+  }
+
+  function getCompanyName(el) {
+    const companyEl = el.querySelector('.job-card-container__company-name') ||
+                     el.querySelector('[data-test-id="job-card-company-name"]') ||
+                     el.querySelector('.artdeco-entity-lockup__subtitle');
+
+    if (companyEl) {
+      return companyEl.textContent?.trim().toLowerCase() || '';
+    }
+    return '';
+  }
+
+  function shouldHideJobCard(el, state, currentSettings) {
+    const filtering = currentSettings.filtering || {};
+    const blacklist = currentSettings.blacklist?.companies || [];
+
+    // Check state-based hiding
+    if (state === 'applied' && filtering.hideApplied) return true;
+    if (state === 'viewed' && filtering.hideViewed) return true;
+
+    // Check location-based hiding
+    const locationType = detectLocationType(el);
+    if (locationType === 'remote' && filtering.hideRemote) return true;
+    if (locationType === 'hybrid' && filtering.hideHybrid) return true;
+    if (locationType === 'onsite' && filtering.hideOnSite) return true;
+
+    // Check salary-based hiding
+    if (filtering.hideNoSalary && !hasSalaryListed(el)) return true;
+
+    // Check company blacklist
+    if (blacklist.length > 0) {
+      const companyName = getCompanyName(el);
+      if (companyName && blacklist.some(blocked => companyName.includes(blocked.toLowerCase()))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function isJobCurrentlySelected(jobId) {
+    if (!jobId) return false;
+
+    // Check if this job is currently selected/opened in the detail pane
+    const currentUrl = window.location.href;
+
+    // Method 1: Check if URL contains this job ID
+    if (currentUrl.includes(`/jobs/view/${jobId}`)) {
+      return true;
+    }
+
+    // Method 2: Check if the job card has active/selected class
+    const jobLink = document.querySelector(`a[href*="/jobs/view/${jobId}"]`);
+    if (jobLink) {
+      const listItem = jobLink.closest('li, div.job-card-container, div.jobs-search-results__list-item');
+      if (listItem) {
+        // Check various classes that indicate selection
+        if (listItem.classList.contains('active') ||
+            listItem.classList.contains('selected') ||
+            listItem.classList.contains('jobs-search-results__list-item--active') ||
+            listItem.getAttribute('aria-current') === 'true') {
+          return true;
+        }
+      }
+    }
+
+    // Method 3: Check if the detail pane is showing this job
+    const detailPane = document.querySelector('[data-job-id], .jobs-details, .jobs-search__job-details');
+    if (detailPane) {
+      const detailJobId = detailPane.getAttribute('data-job-id') ||
+                         extractJobIdFromUrl(detailPane.querySelector('a[href*="/jobs/view/"]')?.href || '');
+      if (detailJobId === jobId) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function applyHiddenState(el, shouldHide, hideMode, jobId) {
+    // Don't hide if this is the currently selected/viewed job
+    if (shouldHide && jobId && isJobCurrentlySelected(jobId)) {
+      shouldHide = false;
+    }
+
+    if (shouldHide) {
+      el.classList.add('li-job-hidden');
+
+      if (hideMode === 'collapse') {
+        el.classList.add('li-job-collapsed');
+
+        // Add "Show" button if not already present
+        if (!el.querySelector('.li-job-show-btn')) {
+          const showBtn = document.createElement('button');
+          showBtn.className = 'li-job-show-btn';
+          showBtn.textContent = 'Show';
+          showBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            el.classList.remove('li-job-collapsed');
+            el.classList.remove('li-job-hidden');
+            showBtn.remove();
+          });
+
+          // Insert button at the beginning of the card
+          el.insertBefore(showBtn, el.firstChild);
+        }
+      }
+    } else {
+      el.classList.remove('li-job-hidden', 'li-job-collapsed');
+
+      // Remove show button if present
+      const showBtn = el.querySelector('.li-job-show-btn');
+      if (showBtn) showBtn.remove();
+    }
+  }
+
   function injectMarkAppliedButton(jobId) {
     if (!jobId) return;
 
@@ -491,13 +652,15 @@
         }
 
       } else {
-        // Job not in storage - detect from LinkedIn's UI
+        // Job not in storage yet
         if (detectedState === 'applied' && currentSettings.tracking.applied.enabled) {
+          // Applied jobs: Store immediately
           state = 'applied';
           shouldStore = true;
         } else if (detectedState === 'viewed' && currentSettings.tracking.viewed.enabled) {
+          // Viewed jobs: Show highlight but DON'T store until clicked
           state = 'viewed';
-          shouldStore = true;
+          // shouldStore stays false - we'll store it when user clicks
         }
 
         // Check if saved (can be saved without being applied/viewed)
@@ -519,6 +682,26 @@
       } else if (isSaved && currentSettings.tracking.saved.enabled) {
         // Only saved, show saved highlight
         annotateCard(el, 'saved', false, existingJob);
+      }
+
+      // Apply filtering/hiding logic
+      const shouldHide = shouldHideJobCard(el, state, currentSettings);
+      const hideMode = currentSettings.filtering?.hideMode || 'collapse';
+      applyHiddenState(el, shouldHide, hideMode, jobId);
+
+      // Add click listener for viewed jobs to store them when clicked
+      if (state === 'viewed' && !existingJob && currentSettings.tracking.viewed.enabled) {
+        const jobLink = el.querySelector('a[href*="/jobs/view/"]');
+        if (jobLink && !jobLink.dataset.clickTracked) {
+          jobLink.dataset.clickTracked = 'true';
+          jobLink.addEventListener('click', async () => {
+            const metadata = extractJobMetadata(el, jobId);
+            metadata.status = 'viewed';
+            metadata.saved = isSaved;
+            await storageManager.saveJob(metadata);
+            console.log(`[LinkedInHighlighter] Stored viewed job on click: ${jobId}`);
+          }, { once: true });
+        }
       }
 
       // Store new job or update existing
@@ -553,6 +736,19 @@
 
   // Re-run when storage changes
   onStorageChange(() => highlightApplied());
+
+  // Re-run when URL changes (user clicks different job)
+  let lastUrl = location.href;
+  const urlObserver = new MutationObserver(() => {
+    const currentUrl = location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      console.log('[LinkedInHighlighter] URL changed, re-checking hidden states');
+      // Small delay to let LinkedIn update the DOM
+      setTimeout(() => highlightApplied(), 100);
+    }
+  });
+  urlObserver.observe(document.body, { childList: true, subtree: true });
 
   // Initial highlight
   await highlightApplied();

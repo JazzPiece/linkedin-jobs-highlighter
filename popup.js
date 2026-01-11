@@ -14,6 +14,18 @@
       showBadge: true,
       showBorder: true,
       showTimestamp: false
+    },
+    filtering: {
+      hideApplied: false,
+      hideViewed: false,
+      hideOnSite: false,
+      hideHybrid: false,
+      hideRemote: false,
+      hideNoSalary: false,
+      hideMode: 'collapse'
+    },
+    blacklist: {
+      companies: []
     }
   };
 
@@ -73,15 +85,15 @@
     return classes[status] || 'badge-applied';
   }
 
-  // Calculate this week's applications (only "applied" status)
-  function getThisWeekCount(jobs) {
+  // Calculate this week's count for a given status
+  function getThisWeekCount(jobs, status = 'applied') {
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
     weekStart.setHours(0, 0, 0, 0);
 
     return Object.values(jobs).filter(job => {
-      return job.status === 'applied' && job.dateApplied >= weekStart.getTime();
+      return job.status === status && job.dateApplied >= weekStart.getTime();
     }).length;
   }
 
@@ -137,16 +149,31 @@
     }).join('');
   }
 
-  // Update statistics
-  function updateStats(jobs) {
+  // Update statistics based on current filter
+  async function updateStats(jobs, filter = 'applied') {
     const jobsArray = Object.values(jobs);
-    // Filter to only count applied jobs (not viewed or saved)
-    const appliedJobs = jobsArray.filter(job => job.status === 'applied');
-    const totalApps = appliedJobs.length;
-    const thisWeek = getThisWeekCount(jobs);
+    // Filter to count jobs for the current status
+    const filteredJobs = jobsArray.filter(job => job.status === filter);
+    const totalCount = filteredJobs.length;
+    const thisWeek = getThisWeekCount(jobs, filter);
 
-    document.getElementById('total-apps').textContent = totalApps;
+    // Update the label based on filter
+    const labelMap = {
+      'applied': 'Total Applied',
+      'viewed': 'Total Viewed'
+    };
+
+    document.getElementById('total-apps').textContent = totalCount;
+    document.getElementById('stat-label-total').textContent = labelMap[filter] || 'Total Applied';
     document.getElementById('this-week').textContent = thisWeek;
+
+    // Update install date
+    const { installDate } = await chrome.storage.local.get('installDate');
+    if (installDate) {
+      document.getElementById('install-date').textContent = formatDate(installDate);
+    } else {
+      document.getElementById('install-date').textContent = 'Unknown';
+    }
   }
 
   // Export data as JSON
@@ -224,7 +251,7 @@
   // Initialize
   async function init() {
     const jobs = await getAllJobs();
-    updateStats(jobs);
+    updateStats(jobs, currentFilter);
     renderJobs(jobs, currentFilter);
 
     // Tab switching
@@ -237,8 +264,9 @@
         // Update filter
         currentFilter = tab.dataset.tab;
 
-        // Re-render jobs with new filter
+        // Re-render jobs and update stats with new filter
         const jobs = await getAllJobs();
+        updateStats(jobs, currentFilter);
         renderJobs(jobs, currentFilter);
       });
     });
@@ -281,85 +309,335 @@
       settingsPanel.classList.remove('show');
     });
 
+    // Update active color preset indicators and current color box
+    function updateColorPresetIndicators() {
+      const colorTypes = ['applied', 'viewed', 'saved'];
+
+      colorTypes.forEach(type => {
+        const colorInput = document.getElementById(`color-${type}`);
+        const currentColorBox = document.getElementById(`current-color-${type}`);
+
+        if (colorInput && currentColorBox) {
+          const selectedColor = colorInput.value.toLowerCase();
+
+          // Update current color box
+          currentColorBox.style.background = selectedColor;
+
+          // Update preset button active states
+          const presetBtns = document.querySelectorAll(`.color-preset-btn[data-target="${type}"]`);
+          presetBtns.forEach(btn => {
+            const btnColor = btn.dataset.color?.toLowerCase();
+            if (btnColor === selectedColor) {
+              btn.classList.add('active');
+            } else {
+              btn.classList.remove('active');
+            }
+          });
+        }
+      });
+    }
+
     // Load settings into UI
     async function loadSettings() {
       const settings = await getSettings();
 
-      // Safely access nested properties with fallbacks
-      document.getElementById('toggle-applied').checked = settings?.tracking?.applied?.enabled ?? true;
-      document.getElementById('toggle-viewed').checked = settings?.tracking?.viewed?.enabled ?? false;
-      document.getElementById('toggle-saved').checked = settings?.tracking?.saved?.enabled ?? false;
+      // Safely access nested properties with fallbacks and null checks
+      const toggleApplied = document.getElementById('toggle-applied');
+      const toggleViewed = document.getElementById('toggle-viewed');
+      const toggleSaved = document.getElementById('toggle-saved');
+      const colorApplied = document.getElementById('color-applied');
+      const colorViewed = document.getElementById('color-viewed');
+      const colorSaved = document.getElementById('color-saved');
+      const toggleBadge = document.getElementById('toggle-badge');
+      const toggleBorder = document.getElementById('toggle-border');
+      const toggleTimestamp = document.getElementById('toggle-timestamp');
 
-      document.getElementById('color-applied').value = settings?.tracking?.applied?.color ?? '#ff0000';
-      document.getElementById('color-viewed').value = settings?.tracking?.viewed?.color ?? '#ffd700';
-      document.getElementById('color-saved').value = settings?.tracking?.saved?.color ?? '#00c851';
+      if (toggleApplied) toggleApplied.checked = settings?.tracking?.applied?.enabled ?? true;
+      if (toggleViewed) toggleViewed.checked = settings?.tracking?.viewed?.enabled ?? false;
+      if (toggleSaved) toggleSaved.checked = settings?.tracking?.saved?.enabled ?? false;
 
-      document.getElementById('toggle-badge').checked = settings?.display?.showBadge ?? true;
-      document.getElementById('toggle-border').checked = settings?.display?.showBorder ?? true;
-      document.getElementById('toggle-timestamp').checked = settings?.display?.showTimestamp ?? false;
+      if (colorApplied) colorApplied.value = settings?.tracking?.applied?.color ?? '#ff0000';
+      if (colorViewed) colorViewed.value = settings?.tracking?.viewed?.color ?? '#ffd700';
+      if (colorSaved) colorSaved.value = settings?.tracking?.saved?.color ?? '#00c851';
+
+      if (toggleBadge) toggleBadge.checked = settings?.display?.showBadge ?? true;
+      if (toggleBorder) toggleBorder.checked = settings?.display?.showBorder ?? true;
+      if (toggleTimestamp) toggleTimestamp.checked = settings?.display?.showTimestamp ?? false;
+
+      // Load filtering settings
+      const toggleHideApplied = document.getElementById('toggle-hide-applied');
+      const toggleHideViewed = document.getElementById('toggle-hide-viewed');
+      const toggleHideRemote = document.getElementById('toggle-hide-remote');
+      const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
+      const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
+      const toggleHideNoSalary = document.getElementById('toggle-hide-no-salary');
+      const hideModeSelect = document.getElementById('hide-mode-select');
+
+      if (toggleHideApplied) toggleHideApplied.checked = settings?.filtering?.hideApplied ?? false;
+      if (toggleHideViewed) toggleHideViewed.checked = settings?.filtering?.hideViewed ?? false;
+      if (toggleHideRemote) toggleHideRemote.checked = settings?.filtering?.hideRemote ?? false;
+      if (toggleHideHybrid) toggleHideHybrid.checked = settings?.filtering?.hideHybrid ?? false;
+      if (toggleHideOnsite) toggleHideOnsite.checked = settings?.filtering?.hideOnSite ?? false;
+      if (toggleHideNoSalary) toggleHideNoSalary.checked = settings?.filtering?.hideNoSalary ?? false;
+      if (hideModeSelect) hideModeSelect.value = settings?.filtering?.hideMode ?? 'collapse';
+
+      // Load blacklist
+      renderBlacklist(settings?.blacklist?.companies ?? []);
+
+      // Update active color indicators
+      updateColorPresetIndicators();
+    }
+
+    // Show notification banner
+    function showSettingsNotification() {
+      const notification = document.getElementById('settings-notification');
+      if (notification) {
+        notification.classList.add('show');
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 5000);
+      }
     }
 
     // Save settings when toggles change
     async function handleSettingChange() {
+      const toggleApplied = document.getElementById('toggle-applied');
+      const toggleViewed = document.getElementById('toggle-viewed');
+      const toggleSaved = document.getElementById('toggle-saved');
+      const colorApplied = document.getElementById('color-applied');
+      const colorViewed = document.getElementById('color-viewed');
+      const colorSaved = document.getElementById('color-saved');
+      const toggleBadge = document.getElementById('toggle-badge');
+      const toggleBorder = document.getElementById('toggle-border');
+      const toggleTimestamp = document.getElementById('toggle-timestamp');
+
+      // Only proceed if all elements exist
+      if (!toggleApplied || !toggleViewed || !toggleSaved ||
+          !colorApplied || !colorViewed || !colorSaved ||
+          !toggleBadge || !toggleBorder || !toggleTimestamp) {
+        console.warn('[Popup] Some settings elements not found, skipping save');
+        return;
+      }
+
+      // Get filtering elements
+      const toggleHideApplied = document.getElementById('toggle-hide-applied');
+      const toggleHideViewed = document.getElementById('toggle-hide-viewed');
+      const toggleHideRemote = document.getElementById('toggle-hide-remote');
+      const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
+      const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
+      const toggleHideNoSalary = document.getElementById('toggle-hide-no-salary');
+      const hideModeSelect = document.getElementById('hide-mode-select');
+
+      // Get current blacklist from storage (don't overwrite it here)
+      const currentSettings = await getSettings();
+
       const settings = {
         tracking: {
           applied: {
-            enabled: document.getElementById('toggle-applied').checked,
-            color: document.getElementById('color-applied').value
+            enabled: toggleApplied.checked,
+            color: colorApplied.value
           },
           viewed: {
-            enabled: document.getElementById('toggle-viewed').checked,
-            color: document.getElementById('color-viewed').value
+            enabled: toggleViewed.checked,
+            color: colorViewed.value
           },
           saved: {
-            enabled: document.getElementById('toggle-saved').checked,
-            color: document.getElementById('color-saved').value
+            enabled: toggleSaved.checked,
+            color: colorSaved.value
           }
         },
         display: {
-          showBadge: document.getElementById('toggle-badge').checked,
-          showBorder: document.getElementById('toggle-border').checked,
-          showTimestamp: document.getElementById('toggle-timestamp').checked
-        }
+          showBadge: toggleBadge.checked,
+          showBorder: toggleBorder.checked,
+          showTimestamp: toggleTimestamp.checked
+        },
+        filtering: {
+          hideApplied: toggleHideApplied?.checked ?? false,
+          hideViewed: toggleHideViewed?.checked ?? false,
+          hideOnSite: toggleHideOnsite?.checked ?? false,
+          hideHybrid: toggleHideHybrid?.checked ?? false,
+          hideRemote: toggleHideRemote?.checked ?? false,
+          hideNoSalary: toggleHideNoSalary?.checked ?? false,
+          hideMode: hideModeSelect?.value ?? 'collapse'
+        },
+        blacklist: currentSettings?.blacklist ?? { companies: [] }
       };
       await saveSettings(settings);
+      updateColorPresetIndicators();
+
+      // Show notification to refresh page
+      showSettingsNotification();
     }
 
-    // Attach change listeners to all settings
-    document.getElementById('toggle-applied').addEventListener('change', handleSettingChange);
-    document.getElementById('toggle-viewed').addEventListener('change', handleSettingChange);
-    document.getElementById('toggle-saved').addEventListener('change', handleSettingChange);
-    document.getElementById('toggle-badge').addEventListener('change', handleSettingChange);
-    document.getElementById('toggle-border').addEventListener('change', handleSettingChange);
-    document.getElementById('toggle-timestamp').addEventListener('change', handleSettingChange);
+    // Attach change listeners to all settings with null checks
+    const toggleApplied = document.getElementById('toggle-applied');
+    const toggleViewed = document.getElementById('toggle-viewed');
+    const toggleSaved = document.getElementById('toggle-saved');
+    const toggleBadge = document.getElementById('toggle-badge');
+    const toggleBorder = document.getElementById('toggle-border');
+    const toggleTimestamp = document.getElementById('toggle-timestamp');
+    const colorApplied = document.getElementById('color-applied');
+    const colorViewed = document.getElementById('color-viewed');
+    const colorSaved = document.getElementById('color-saved');
 
-    document.getElementById('color-applied').addEventListener('input', handleSettingChange);
-    document.getElementById('color-viewed').addEventListener('input', handleSettingChange);
-    document.getElementById('color-saved').addEventListener('input', handleSettingChange);
+    if (toggleApplied) toggleApplied.addEventListener('change', handleSettingChange);
+    if (toggleViewed) toggleViewed.addEventListener('change', handleSettingChange);
+    if (toggleSaved) toggleSaved.addEventListener('change', handleSettingChange);
+    if (toggleBadge) toggleBadge.addEventListener('change', handleSettingChange);
+    if (toggleBorder) toggleBorder.addEventListener('change', handleSettingChange);
+    if (toggleTimestamp) toggleTimestamp.addEventListener('change', handleSettingChange);
+
+    if (colorApplied) colorApplied.addEventListener('input', handleSettingChange);
+    if (colorViewed) colorViewed.addEventListener('input', handleSettingChange);
+    if (colorSaved) colorSaved.addEventListener('input', handleSettingChange);
 
     // Color preset buttons
     document.querySelectorAll('.color-preset-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const color = btn.dataset.color;
         const target = btn.dataset.target;
-        document.getElementById(`color-${target}`).value = color;
-        await handleSettingChange();
+        const colorInput = document.getElementById(`color-${target}`);
+        if (colorInput) {
+          colorInput.value = color;
+          await handleSettingChange();
+        }
       });
     });
+
+    // Blacklist management functions
+    function renderBlacklist(companies) {
+      const listEl = document.getElementById('blacklist-list');
+      if (!listEl) return;
+
+      if (companies.length === 0) {
+        listEl.innerHTML = '<div style="font-size: 12px; color: #9ca3af; padding: 8px;">No companies blacklisted</div>';
+        return;
+      }
+
+      listEl.innerHTML = companies.map(company => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e5e7eb;">
+          <span style="font-size: 13px; color: #374151;">${company}</span>
+          <button class="btn-remove-blacklist" data-company="${company}" style="padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">Remove</button>
+        </div>
+      `).join('');
+
+      // Attach remove listeners
+      listEl.querySelectorAll('.btn-remove-blacklist').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const company = btn.dataset.company;
+          await removeFromBlacklist(company);
+        });
+      });
+    }
+
+    async function addToBlacklist(company) {
+      if (!company || company.trim() === '') return;
+
+      const settings = await getSettings();
+      const companies = settings?.blacklist?.companies ?? [];
+
+      // Check if already exists (case-insensitive)
+      if (companies.some(c => c.toLowerCase() === company.toLowerCase())) {
+        alert('Company already in blacklist');
+        return;
+      }
+
+      companies.push(company.trim());
+
+      // Build full settings object with updated blacklist
+      const updatedSettings = {
+        ...settings,
+        blacklist: { companies }
+      };
+
+      await saveSettings(updatedSettings);
+
+      // Re-render blacklist UI immediately
+      renderBlacklist(companies);
+
+      // Clear input
+      const input = document.getElementById('blacklist-input');
+      if (input) input.value = '';
+
+      // Show notification to refresh page
+      showSettingsNotification();
+    }
+
+    async function removeFromBlacklist(company) {
+      const settings = await getSettings();
+      const companies = settings?.blacklist?.companies ?? [];
+
+      const filtered = companies.filter(c => c !== company);
+
+      await saveSettings({
+        ...settings,
+        blacklist: { companies: filtered }
+      });
+
+      renderBlacklist(filtered);
+    }
+
+    // Blacklist event listeners
+    const blacklistInput = document.getElementById('blacklist-input');
+    const btnAddBlacklist = document.getElementById('btn-add-blacklist');
+
+    if (btnAddBlacklist && blacklistInput) {
+      btnAddBlacklist.addEventListener('click', async () => {
+        await addToBlacklist(blacklistInput.value);
+      });
+
+      // Add on Enter key
+      blacklistInput.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+          await addToBlacklist(blacklistInput.value);
+        }
+      });
+    }
+
+    // Filtering event listeners
+    const toggleHideApplied = document.getElementById('toggle-hide-applied');
+    const toggleHideViewed = document.getElementById('toggle-hide-viewed');
+    const toggleHideRemote = document.getElementById('toggle-hide-remote');
+    const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
+    const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
+    const toggleHideNoSalary = document.getElementById('toggle-hide-no-salary');
+    const hideModeSelect = document.getElementById('hide-mode-select');
+
+    if (toggleHideApplied) toggleHideApplied.addEventListener('change', handleSettingChange);
+    if (toggleHideViewed) toggleHideViewed.addEventListener('change', handleSettingChange);
+    if (toggleHideRemote) toggleHideRemote.addEventListener('change', handleSettingChange);
+    if (toggleHideHybrid) toggleHideHybrid.addEventListener('change', handleSettingChange);
+    if (toggleHideOnsite) toggleHideOnsite.addEventListener('change', handleSettingChange);
+    if (toggleHideNoSalary) toggleHideNoSalary.addEventListener('change', handleSettingChange);
+    if (hideModeSelect) hideModeSelect.addEventListener('change', handleSettingChange);
 
     // Reset to defaults
     document.getElementById('btn-reset-settings').addEventListener('click', async () => {
       if (confirm('Reset all settings to defaults?')) {
         await saveSettings(DEFAULT_SETTINGS);
         await loadSettings();
+        showSettingsNotification();
       }
     });
+
+    // Notification close button
+    const notificationClose = document.getElementById('notification-close');
+    if (notificationClose) {
+      notificationClose.addEventListener('click', () => {
+        const notification = document.getElementById('settings-notification');
+        if (notification) {
+          notification.classList.remove('show');
+        }
+      });
+    }
 
     // Listen for storage changes
     chrome.storage.onChanged.addListener(async (changes) => {
       if (changes.jobs) {
         const jobs = await getAllJobs();
-        updateStats(jobs);
+        updateStats(jobs, currentFilter);
         renderJobs(jobs, currentFilter);
       }
     });
