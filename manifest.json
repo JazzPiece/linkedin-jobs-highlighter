@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Jobs — Applied Highlighter",
+  "name": "LinkedIn Job Filter & Highlighter",
   "version": "1.0.1",
-  "description": "Highlights LinkedIn job posts you’ve applied to.",
+  "description": "Filter and highlight LinkedIn jobs. Never apply twice! Hide jobs by company, location, salary. Track applications automatically.",
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
   "permissions": ["storage", "tabs"],
   "host_permissions": ["*://www.linkedin.com/*"],
   "content_scripts": [
@@ -18,7 +23,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "LinkedIn Jobs Tracker",
+    "default_title": "LinkedIn Job Filter & Highlighter",
     "default_popup": "popup.html"
   },
   "web_accessible_resources": [

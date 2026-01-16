@@ -39,7 +39,6 @@
     },
     filtering: {
       hideApplied: false,
-      hideViewed: false,
       hideOnSite: false,
       hideHybrid: false,
       hideRemote: false,
@@ -305,7 +304,9 @@
 
   function onStorageChange(callback) {
     chrome.storage.onChanged.addListener((changes, area) => {
-      if (area === "local" && changes.jobs) callback();
+      if (area === "local" && (changes.jobs || changes.settings)) {
+        callback();
+      }
     });
   }
 
@@ -456,13 +457,26 @@
   }
 
   function getCompanyName(el) {
-    const companyEl = el.querySelector('.job-card-container__company-name') ||
-                     el.querySelector('[data-test-id="job-card-company-name"]') ||
-                     el.querySelector('.artdeco-entity-lockup__subtitle');
+    // Try multiple selectors for company name
+    const selectors = [
+      '.job-card-container__company-name',
+      '[data-test-id="job-card-company-name"]',
+      '.artdeco-entity-lockup__subtitle',
+      '.job-card-container__primary-description',
+      '.base-search-card__subtitle',
+      'span.job-card-container__primary-description'
+    ];
 
-    if (companyEl) {
-      return companyEl.textContent?.trim().toLowerCase() || '';
+    for (const selector of selectors) {
+      const companyEl = el.querySelector(selector);
+      if (companyEl) {
+        const companyName = companyEl.textContent?.trim().toLowerCase() || '';
+        if (companyName) {
+          return companyName;
+        }
+      }
     }
+
     return '';
   }
 
@@ -470,24 +484,27 @@
     const filtering = currentSettings.filtering || {};
     const blacklist = currentSettings.blacklist?.companies || [];
 
-    // Check state-based hiding
+    // State-based hiding: Only hide applied jobs if hideApplied is enabled
+    // NEVER hide viewed jobs based on state (they should only be highlighted)
     if (state === 'applied' && filtering.hideApplied) return true;
-    if (state === 'viewed' && filtering.hideViewed) return true;
 
-    // Check location-based hiding
+    // Location-based hiding: Apply to ALL jobs (regardless of state)
     const locationType = detectLocationType(el);
     if (locationType === 'remote' && filtering.hideRemote) return true;
     if (locationType === 'hybrid' && filtering.hideHybrid) return true;
     if (locationType === 'onsite' && filtering.hideOnSite) return true;
 
-    // Check salary-based hiding
+    // Salary-based hiding: Apply to ALL jobs
     if (filtering.hideNoSalary && !hasSalaryListed(el)) return true;
 
-    // Check company blacklist
+    // Company blacklist: Apply to ALL jobs
     if (blacklist.length > 0) {
       const companyName = getCompanyName(el);
-      if (companyName && blacklist.some(blocked => companyName.includes(blocked.toLowerCase()))) {
-        return true;
+      if (companyName) {
+        const isBlacklisted = blacklist.some(blocked => {
+          return companyName.includes(blocked.toLowerCase());
+        });
+        if (isBlacklisted) return true;
       }
     }
 
@@ -724,9 +741,19 @@
 
   console.log('[LinkedInHighlighter] V2 Initializing...');
 
-  // Load settings on startup
-  currentSettings = await getSettings();
-  applyDynamicColors();
+  // Load settings on startup and ensure they're properly set
+  try {
+    currentSettings = await getSettings();
+    // Ensure settings have proper structure
+    if (!currentSettings.tracking) {
+      currentSettings = DEFAULT_SETTINGS;
+    }
+    applyDynamicColors();
+  } catch (error) {
+    console.error('[LinkedInHighlighter] Error loading settings:', error);
+    currentSettings = DEFAULT_SETTINGS;
+    applyDynamicColors();
+  }
 
   // Observe dynamic/infinite scrolling updates
   const observer = new MutationObserver(() => {
@@ -734,8 +761,14 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Re-run when storage changes
-  onStorageChange(() => highlightApplied());
+  // Re-run when storage changes (jobs or settings)
+  onStorageChange(async () => {
+    // Reload settings if they changed
+    currentSettings = await getSettings();
+    applyDynamicColors();
+    // Re-apply highlighting with new settings
+    highlightApplied();
+  });
 
   // Re-run when URL changes (user clicks different job)
   let lastUrl = location.href;

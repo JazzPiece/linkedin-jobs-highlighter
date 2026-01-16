@@ -17,7 +17,6 @@
     },
     filtering: {
       hideApplied: false,
-      hideViewed: false,
       hideOnSite: false,
       hideHybrid: false,
       hideRemote: false,
@@ -173,6 +172,21 @@
       document.getElementById('install-date').textContent = formatDate(installDate);
     } else {
       document.getElementById('install-date').textContent = 'Unknown';
+    }
+  }
+
+  // Helper function to refresh all LinkedIn tabs
+  async function refreshLinkedInTabs() {
+    try {
+      const tabs = await chrome.tabs.query({ url: '*://www.linkedin.com/*' });
+      if (tabs.length > 0) {
+        for (const tab of tabs) {
+          await chrome.tabs.reload(tab.id);
+        }
+        console.log('[Popup] Auto-refreshed', tabs.length, 'LinkedIn tab(s)');
+      }
+    } catch (error) {
+      console.error('[Popup] Failed to auto-refresh tabs:', error);
     }
   }
 
@@ -366,7 +380,6 @@
 
       // Load filtering settings
       const toggleHideApplied = document.getElementById('toggle-hide-applied');
-      const toggleHideViewed = document.getElementById('toggle-hide-viewed');
       const toggleHideRemote = document.getElementById('toggle-hide-remote');
       const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
       const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
@@ -374,7 +387,6 @@
       const hideModeSelect = document.getElementById('hide-mode-select');
 
       if (toggleHideApplied) toggleHideApplied.checked = settings?.filtering?.hideApplied ?? false;
-      if (toggleHideViewed) toggleHideViewed.checked = settings?.filtering?.hideViewed ?? false;
       if (toggleHideRemote) toggleHideRemote.checked = settings?.filtering?.hideRemote ?? false;
       if (toggleHideHybrid) toggleHideHybrid.checked = settings?.filtering?.hideHybrid ?? false;
       if (toggleHideOnsite) toggleHideOnsite.checked = settings?.filtering?.hideOnSite ?? false;
@@ -423,7 +435,6 @@
 
       // Get filtering elements
       const toggleHideApplied = document.getElementById('toggle-hide-applied');
-      const toggleHideViewed = document.getElementById('toggle-hide-viewed');
       const toggleHideRemote = document.getElementById('toggle-hide-remote');
       const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
       const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
@@ -455,7 +466,6 @@
         },
         filtering: {
           hideApplied: toggleHideApplied?.checked ?? false,
-          hideViewed: toggleHideViewed?.checked ?? false,
           hideOnSite: toggleHideOnsite?.checked ?? false,
           hideHybrid: toggleHideHybrid?.checked ?? false,
           hideRemote: toggleHideRemote?.checked ?? false,
@@ -469,6 +479,9 @@
 
       // Show notification to refresh page
       showSettingsNotification();
+
+      // Auto-refresh LinkedIn tabs after settings change
+      await refreshLinkedInTabs();
     }
 
     // Attach change listeners to all settings with null checks
@@ -561,8 +574,16 @@
       const input = document.getElementById('blacklist-input');
       if (input) input.value = '';
 
-      // Show notification to refresh page
-      showSettingsNotification();
+      // Show notification (no longer showing refresh message since it's automatic)
+      const notification = document.getElementById('settings-notification');
+      if (notification) {
+        notification.textContent = 'Company added to blacklist!';
+        notification.classList.add('show');
+        setTimeout(() => {
+          notification.classList.remove('show');
+          notification.textContent = 'Settings saved! Refresh LinkedIn page to see changes.';
+        }, 3000);
+      }
     }
 
     async function removeFromBlacklist(company) {
@@ -577,6 +598,17 @@
       });
 
       renderBlacklist(filtered);
+
+      // Show notification
+      const notification = document.getElementById('settings-notification');
+      if (notification) {
+        notification.textContent = 'Company removed from blacklist!';
+        notification.classList.add('show');
+        setTimeout(() => {
+          notification.classList.remove('show');
+          notification.textContent = 'Settings saved! Refresh LinkedIn page to see changes.';
+        }, 3000);
+      }
     }
 
     // Blacklist event listeners
@@ -598,7 +630,6 @@
 
     // Filtering event listeners
     const toggleHideApplied = document.getElementById('toggle-hide-applied');
-    const toggleHideViewed = document.getElementById('toggle-hide-viewed');
     const toggleHideRemote = document.getElementById('toggle-hide-remote');
     const toggleHideHybrid = document.getElementById('toggle-hide-hybrid');
     const toggleHideOnsite = document.getElementById('toggle-hide-onsite');
@@ -606,12 +637,26 @@
     const hideModeSelect = document.getElementById('hide-mode-select');
 
     if (toggleHideApplied) toggleHideApplied.addEventListener('change', handleSettingChange);
-    if (toggleHideViewed) toggleHideViewed.addEventListener('change', handleSettingChange);
     if (toggleHideRemote) toggleHideRemote.addEventListener('change', handleSettingChange);
     if (toggleHideHybrid) toggleHideHybrid.addEventListener('change', handleSettingChange);
     if (toggleHideOnsite) toggleHideOnsite.addEventListener('change', handleSettingChange);
     if (toggleHideNoSalary) toggleHideNoSalary.addEventListener('change', handleSettingChange);
     if (hideModeSelect) hideModeSelect.addEventListener('change', handleSettingChange);
+
+    // Refresh LinkedIn page button
+    document.getElementById('btn-refresh-page').addEventListener('click', async () => {
+      try {
+        const tabs = await chrome.tabs.query({ url: '*://www.linkedin.com/*' });
+        if (tabs.length > 0) {
+          for (const tab of tabs) {
+            await chrome.tabs.reload(tab.id);
+          }
+          console.log('[Popup] Refreshed', tabs.length, 'LinkedIn tab(s)');
+        }
+      } catch (error) {
+        console.error('[Popup] Failed to refresh tabs:', error);
+      }
+    });
 
     // Reset to defaults
     document.getElementById('btn-reset-settings').addEventListener('click', async () => {
@@ -619,6 +664,8 @@
         await saveSettings(DEFAULT_SETTINGS);
         await loadSettings();
         showSettingsNotification();
+        // Auto-refresh LinkedIn tabs after reset
+        await refreshLinkedInTabs();
       }
     });
 
