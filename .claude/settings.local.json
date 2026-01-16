@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(powershell -Command \"Remove-Item -Path ''\\\\?\\\\C:\\\\Users\\\\young\\\\OneDrive\\\\Desktop\\\\Learn\\\\Code\\\\linkedin-jobs-highlighter\\\\nul'' -Force\")",
-      "Bash(powershell -Command \"Remove-Item -LiteralPath ''.\\\\nul'' -Force\")"
+      "Bash(powershell -Command \"Remove-Item -LiteralPath ''.\\\\nul'' -Force\")",
+      "Bash(powershell:*)",
+      "Bash(dir)",
+      "Bash(dir /s *.png)"
     ]
   }
 }
