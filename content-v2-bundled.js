@@ -561,30 +561,9 @@
 
       if (hideMode === 'collapse') {
         el.classList.add('li-job-collapsed');
-
-        // Add "Show" button if not already present
-        if (!el.querySelector('.li-job-show-btn')) {
-          const showBtn = document.createElement('button');
-          showBtn.className = 'li-job-show-btn';
-          showBtn.textContent = 'Show';
-          showBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            el.classList.remove('li-job-collapsed');
-            el.classList.remove('li-job-hidden');
-            showBtn.remove();
-          });
-
-          // Insert button at the beginning of the card
-          el.insertBefore(showBtn, el.firstChild);
-        }
       }
     } else {
       el.classList.remove('li-job-hidden', 'li-job-collapsed');
-
-      // Remove show button if present
-      const showBtn = el.querySelector('.li-job-show-btn');
-      if (showBtn) showBtn.remove();
     }
   }
 

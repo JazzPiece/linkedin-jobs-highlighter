@@ -108,28 +108,3 @@ li.li-job-hidden:not(.li-job-collapsed),
 .job-card-container.li-job-hidden:not(.li-job-collapsed) {
   display: none !important;
 }
-
-/* Show button for collapsed jobs */
-.li-job-show-btn {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
-  padding: 6px 16px;
-  background: #0073b1;
-  color: white;
-  border: none;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.li-job-show-btn:hover {
-  background: #005885;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-  transform: translate(-50%, -50%) scale(1.05);
-}
