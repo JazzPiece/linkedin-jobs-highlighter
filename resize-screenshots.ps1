@@ -16,7 +16,7 @@ if (-not (Test-Path $outputFolder)) {
 # Target dimensions required by Chrome Web Store
 $targetWidth = 1280
 $targetHeight = 800
-
+  
 # List of screenshot files to resize
 $screenshots = @(
     "01-filterworking.png",
