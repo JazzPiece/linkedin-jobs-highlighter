@@ -1,43 +1,156 @@
+# ==========================================
+# Build & Package Files
+# ==========================================
+
 # Build artifacts
 web-ext-artifacts/
 *.xpi
 *.zip
+linkedin-job-filter-highlighter.zip
 
-# Firefox/Chrome extension store files
+# Temporary build directories
+temp-extension-package/
+build/
+dist/
+
+# ==========================================
+# Firefox/Chrome Extension Store Files
+# ==========================================
+
 .amo-upload-uuid
 .web-extension-id
 
-# Node modules (if we add build tools later)
+# ==========================================
+# Development & Testing Files
+# ==========================================
+
+# Test/debug pages (not for production)
+test-storage.html
+test-launcher.html
+*.test.html
+
+# ==========================================
+# Documentation (Keep README.md only)
+# ==========================================
+
+# Chrome Web Store submission docs
+chrome-store-privacy-justifications.md
+CHROME-STORE-SUBMISSION-GUIDE.md
+SUBMISSION-CHECKLIST.md
+
+# Firefox submission docs
+FIREFOX-TESTING-GUIDE.md
+
+# Plan/notes files
+logical-noodling-hennessy.md
+
+# Ignore all markdown except README
+*.md
+!README.md
+
+# ==========================================
+# Scripts & Tools
+# ==========================================
+
+# PowerShell scripts (dev tools, not needed in repo)
+resize-screenshots.ps1
+create-extension-zip.ps1
+
+# ==========================================
+# Screenshots (Keep originals, ignore resized)
+# ==========================================
+
+# Resized screenshots (generated from originals)
+assets/screenshots/resized/
+
+# ==========================================
+# Claude AI / Development Tools
+# ==========================================
+
+# Claude Code files
+.claude/
+.claude-code/
+*.claude
+claude-*.json
+*.jsonl
+
+# ==========================================
+# Node Modules (if we add build tools later)
+# ==========================================
+
 node_modules/
 package-lock.json
 yarn.lock
 
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
+# ==========================================
+# OS Files
+# ==========================================
 
-# Editor files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ==========================================
+# Editor Files
+# ==========================================
+
+# Visual Studio Code
 .vscode/
+*.code-workspace
+
+# JetBrains IDEs
 .idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
 *~
 
+# ==========================================
 # Logs
+# ==========================================
+
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+
 .env
 .env.local
+.env.*.local
 
-# Temporary files
+# API keys / secrets
+secrets.json
+credentials.json
+config.local.js
+
+# ==========================================
+# Temporary Files
+# ==========================================
+
 *.tmp
 *.temp
-
-# Test files
-test-storage.html
-*.test.html
+*.bak
+*.backup
+*-backup
+*-old
+.cache/
