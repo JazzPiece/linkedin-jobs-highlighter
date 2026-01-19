@@ -55,6 +55,10 @@ logical-noodling-hennessy.md
 # PowerShell scripts (dev tools, not needed in repo)
 resize-screenshots.ps1
 create-extension-zip.ps1
+create-firefox-zip.ps1
+
+# Firefox-specific manifest (generated for packaging)
+manifest-firefox.json
 
 # ==========================================
 # Screenshots (Keep originals, ignore resized)
